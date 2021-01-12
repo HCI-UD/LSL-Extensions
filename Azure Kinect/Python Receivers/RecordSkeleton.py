@@ -1,12 +1,9 @@
 import math
 import pylsl
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from PIL import Image
 import cv2
 import csv
 
-with open("VincentR.csv", "w", newline='') as file:
+with open("Skeleton.csv", "w", newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["Order", "Tstamp", "x", "y", "z", "a1", "a2", "a3", "a4", "confidence"])
     print("Waiting for Skeleton Stream")
@@ -15,7 +12,9 @@ with open("VincentR.csv", "w", newline='') as file:
     print("Open Skeleton Stream")
     sample, ts = inlet.pull_sample()
     index = 1
+    counter = 0
     while sample != None:
+        counter += 1
         myList = [index]
         myList.append(str(ts))
         for elt in sample:
@@ -23,3 +22,5 @@ with open("VincentR.csv", "w", newline='') as file:
         writer.writerow(myList)
         index+=1
         sample, ts = inlet.pull_sample(timeout=10)
+    print("Done with Skeleton")
+    print(counter)

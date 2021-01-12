@@ -12,8 +12,13 @@ inlet = pylsl.StreamInlet(streams[0])
 print("Opened IR Stream")
 sample, ts = inlet.pull_sample()
 i = 0
-while sample != None and i < 80:
-    width = 640
+counter = 0
+while sample != None:
+    counter += 1
+    width = 320
+    #width = 640
+    #width = 512
+    #width = 1024
     arr = np.array(sample).astype(np.uint16)
     image = arr.reshape(int(len(sample)/width), width)
     modified = image.astype(np.int32)
@@ -23,3 +28,4 @@ while sample != None and i < 80:
     sample, ts = inlet.pull_sample(timeout=10)
     i += 1
 print("Done with IR")
+print(counter)
