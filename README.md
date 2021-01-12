@@ -14,7 +14,20 @@ dnn_model_2_0.onnx, which needs to be added into both the Azure Kinect Body Trac
 
 cudnn64_y.dll, which needs to be added into the Azure Kinect Body Tracking SDK > tools folder.
 
-Next, in the Solution Explorer, right-click on the "Source Files" folder and choose Add > New Item. Select the file type of C++ file (.cpp), name it Reader.cpp, and select Add. Now, copy and paste the code from the file Reader.cpp, located in the Visual Studio 2019 folder, into that new file. Next, at the top, below the uppermost toolbar, change the machine type to x64. Next, in the toolbar at the top, select Project > [your Project Name] properties. You will need to make the following changes. In Configuration > Debugging: paste the following line into the Environment space: PATH=%PATH%;$(ProjectDir)..\Azure Kinect Body Tracking SDK\sdk\windows-desktop\amd64\release\bin;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\windows-desktop\amd64\release\bin;$(ProjectDir)..\liblsl-CPP\bin;$(ProjectDir)..\Azure Kinect Body Tracking SDK\tools In Configuration > C/C++ > General: paste the following line into the Additional Include Directories space: $(ProjectDir)..\liblsl-CPP\include;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\include;$(ProjectDir)..\Azure Kinect Body tracking SDK\sdk\include In Configuration > Linker > General: paste the following line into the Additional Library Directories space: $(ProjectDir)..\liblsl-CPP\lib;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\windows-desktop\amd64\release\lib;$(ProjectDir)..\Azure Kinect Body Tracking SDK\sdk\windows-desktop\amd64\release\lib In Configuration > Linker > Input: paste the following text at the beginning of the Additional Dependencies space (not deleting text, merely adding this text before it): k4abt.lib;k4a.lib;lsl.lib; The extension is automatically set up to record color images, depth images, infrared images, body tracking data, and audio data, with the audio data being sampled at roughly N Hz, and the rest of the data being sampled at 5 frames per second. To alter this setup, go to lines N1-N2.
+Next, in the Solution Explorer, right-click on the "Source Files" folder and choose Add > New Item. Select the file type of C++ file (.cpp), name it Reader.cpp, and select Add. Now, copy and paste the code from the file Reader.cpp, located in the Visual Studio 2019 folder, into that new file. Next, at the top, below the uppermost toolbar, change the machine type to x64. Next, in the toolbar at the top, select Project > [your Project Name] properties. 
+
+You will need to make the following changes. 
+
+In Configuration > Debugging: paste the following line into the Environment space: PATH=%PATH%;$(ProjectDir)..\Azure Kinect Body Tracking SDK\sdk\windows-desktop\amd64\release\bin;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\windows-desktop\amd64\release\bin;$(ProjectDir)..\liblsl-CPP\bin;$(ProjectDir)..\Azure Kinect Body Tracking SDK\tools 
+
+In Configuration > C/C++ > General: paste the following line into the Additional Include Directories space: $(ProjectDir)..\liblsl-CPP\include;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\include;$(ProjectDir)..\Azure Kinect Body tracking SDK\sdk\include 
+
+In Configuration > Linker > General: paste the following line into the Additional Library Directories space: $(ProjectDir)..\liblsl-CPP\lib;$(ProjectDir)..\Azure Kinect SDK v1.4.0\sdk\windows-desktop\amd64\release\lib;$(ProjectDir)..\Azure Kinect Body Tracking SDK\sdk\windows-desktop\amd64\release\lib 
+
+In Configuration > Linker > Input: paste the following text at the beginning of the Additional Dependencies space (not deleting text, merely adding this text before it): k4abt.lib;k4a.lib;lsl.lib; 
+
+
+The extension is automatically set up to record color images, depth images, infrared images, body tracking data, and audio data, with the audio data being sampled at roughly N Hz, and the rest of the data being sampled at 5 frames per second. To alter this setup, go to lines N1-N2.
 
 Notes on Receiving Data:
 
