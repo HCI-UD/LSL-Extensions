@@ -13,8 +13,13 @@ inlet = pylsl.StreamInlet(streams[0])
 print(streams[0].channel_format())
 print("Opened Color Stream")
 sample, ts = inlet.pull_sample()
+counter = 0
 while sample != None:
+    counter += 1
     width = 1280
+    #width = 1920
+    #width = 2560
+    #width = 2048
     arr = np.array(sample).astype(np.uint8)
     arr = arr.reshape(int(len(sample)/(width*4)), width*4)
     b = arr[:,::4]
@@ -24,9 +29,8 @@ while sample != None:
     arrays = [r, g, b, a]
     image = np.stack(arrays, axis=2)
     color = Image.fromarray(image, mode='RGBA')
-    #color.save("Saved Images\color" + str(ts) + ".png", "PNG")
+    color.save("Kinect Images\color" + str(ts) + ".png", "PNG")
     print(len(sample))
-    print(sample[0:10])
-    print(sys.getsizeof(sample[0]))
     sample, ts = inlet.pull_sample(timeout=10)
 print("Done with Color")
+print(counter)
