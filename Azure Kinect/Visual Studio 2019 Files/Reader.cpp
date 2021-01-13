@@ -26,6 +26,14 @@ constexpr auto REFTIMES_PER_MILLISEC = 10000;
 
 int quitter = 0;
 int audioDone = 0;
+bool timeForTrackerToEnd = false;
+bool timeForAudioToEnd = false;
+
+int AudioCounter = 0;
+int ColorCounter = 0;
+int IRCounter = 0;
+int DepthCounter = 0;
+int SkeletonCounter = 0;
 
 DWORD WINAPI audioThread(LPVOID lpParameter)
 {
@@ -53,7 +61,7 @@ DWORD WINAPI audioThread(LPVOID lpParameter)
     hr = pEnumerator->EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE, &pCollection);
     EXIT_ON_ERROR(hr);
 
-    hr = pCollection->Item(1, &pDevice); //Had to hard-code index. Find the actual index on your own device.
+    hr = pCollection->Item(0, &pDevice); //Had to hard-code index. Find the actual index on your own device.
     EXIT_ON_ERROR(hr);
 
     hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&pAudioClient);
@@ -88,24 +96,25 @@ DWORD WINAPI audioThread(LPVOID lpParameter)
     hr = pAudioClient->Start();
     EXIT_ON_ERROR(hr);
 
-    while (bDone == FALSE) {
+    while (bDone == FALSE && !timeForAudioToEnd) {
         hr = pCaptureClient->GetNextPacketSize(&packetLength);
         EXIT_ON_ERROR(hr);
 
-        while (packetLength != 0 && bDone == FALSE) {
+        while (packetLength != 0 && bDone == FALSE && !timeForAudioToEnd) {
             hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, NULL, NULL);
             EXIT_ON_ERROR(hr);
-            printf("%d, ", numFramesAvailable);
             if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
                 pData = NULL;
                 for (int iterator = 0; 0 < numFramesAvailable; iterator += 480) { //480 = packet size in my computer
                     char blanks[480*28];
                     audioOutlet.push_sample(blanks);
+                    AudioCounter++;
                 }
             }
             else {
                 for (int iterator = 0; iterator < numFramesAvailable; iterator += 480*28) {
                     audioOutlet.push_sample((char*)&pData[iterator]);
+                    AudioCounter++;
                 }
             }
             if (quitter != 0) {
@@ -133,6 +142,17 @@ Exit:
     return hr;
 }
 void ListEndpoints();
+
+DWORD WINAPI Timer(LPVOID lpParameter) {
+    clock_t wallTimeOne = clock();
+    clock_t wallTimeTwo = clock();
+    while (wallTimeTwo - wallTimeOne < CLOCKS_PER_SEC*15) {
+        wallTimeTwo = clock();
+    }
+    timeForAudioToEnd = true;
+    timeForTrackerToEnd = true;
+    return 0;
+}
 
 void ListEndpoints()
 {
@@ -177,6 +197,7 @@ void ListEndpoints()
         // Initialize container for property value.
         PropVariantInit(&varName);
 
+        // Get the endpoint's friendly-name property.
         // Get the endpoint's friendly-name property.
         hr = pProps->GetValue(PKEY_Device_FriendlyName, &varName);
         EXIT_ON_ERROR(hr);
@@ -376,18 +397,20 @@ void sendData(k4a_device_t device, char* serial_number, k4a_device_configuration
     }
 
 
-    //while (true) 
-    for (int i = 0; i < 5; i++)
-    {
-        if (i == 20) {
+    int i = 0;
+    while (!timeForTrackerToEnd)
+    {/*
+        if ((i == 20 && config.camera_fps == K4A_FRAMES_PER_SECOND_5) || (i == 50 && config.camera_fps == K4A_FRAMES_PER_SECOND_30)) {
             float skeletonBlanks[256];
-            skeletonBlanks[7] = 6;
-            char* colorBlanks = new char[COLOR_SIZE];
-            colorBlanks[4] = 2;
-            skeletonOutlet.push_sample(skeletonBlanks, 0);
-            colorOutlet.push_sample(colorBlanks, 0);
-            delete[] colorBlanks;
+
+             skeletonBlanks[7] = 6;
+             char* colorBlanks = new char[COLOR_SIZE];
+             colorBlanks[4] = 2;
+                skeletonOutlet.push_sample(skeletonBlanks, 0);
+                colorOutlet.push_sample(colorBlanks, 0);
+                delete[] colorBlanks;
         }
+        i++;*/
         //Get capture.
         k4a_capture_t capture;
         switch (k4a_device_get_capture(device, &capture, 2000))
@@ -406,43 +429,31 @@ void sendData(k4a_device_t device, char* serial_number, k4a_device_configuration
         //Send images.
         if (COLOR_SIZE != 0) {
             k4a_image_t color = k4a_capture_get_color_image(capture);
-            printf(" | Color res:%4dx%4d stride:%5d, size:%5d\n",
-                k4a_image_get_height_pixels(color),
-                k4a_image_get_width_pixels(color),
-                k4a_image_get_stride_bytes(color),
-                k4a_image_get_size(color));
             if (color != NULL) {
                 uint8_t* colorBuffer = k4a_image_get_buffer(color);
                 char* colorArray = (char*)colorBuffer;
                 colorOutlet.push_sample(colorArray);
+                ColorCounter++;
             }
             k4a_image_release(color);
         }
         if (DEPTH_SIZE != 0) {
             k4a_image_t depth = k4a_capture_get_depth_image(capture);
-            printf(" | Depth res:%4dx%4d stride:%5d, size:%5d\n",
-                k4a_image_get_height_pixels(depth),
-                k4a_image_get_width_pixels(depth),
-                k4a_image_get_stride_bytes(depth),
-                k4a_image_get_size(depth));
             if (depth != NULL) {
                 uint8_t* depthBuffer = k4a_image_get_buffer(depth);
                 int16_t* depthArray = (int16_t*)depthBuffer;
                 depthOutlet.push_sample(depthArray);
+                DepthCounter++;
             }
             k4a_image_release(depth);
         }
         if (IR_SIZE != NULL) {
             k4a_image_t ir = k4a_capture_get_ir_image(capture);
-            printf(" | IR res:%4dx%4d stride:%5d, size:%5d\n",
-                k4a_image_get_height_pixels(ir),
-                k4a_image_get_width_pixels(ir),
-                k4a_image_get_stride_bytes(ir),
-                k4a_image_get_size(ir));
             if (ir != NULL) {
                 uint8_t* irBuffer = k4a_image_get_buffer(ir);
                 int16_t* irArray = (int16_t*)irBuffer;
                 irOutlet.push_sample(irArray);
+                IRCounter++;
             }
             k4a_image_release(ir);
         }
@@ -470,6 +481,7 @@ void sendData(k4a_device_t device, char* serial_number, k4a_device_configuration
                     printf("Error: Wrong number of bodies\n");
                     float jointInfo2[256];
                     skeletonOutlet.push_sample(jointInfo2);
+                    SkeletonCounter++;
                 }
                 else
                 {
@@ -515,6 +527,7 @@ void sendData(k4a_device_t device, char* serial_number, k4a_device_configuration
                             }
                         }
                         skeletonOutlet.push_sample(jointInfo);
+                        SkeletonCounter++;
                     }
                 }
 
@@ -600,15 +613,15 @@ int main() {
     //config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
 
     //config.depth_mode = K4A_DEPTH_MODE_OFF;
-    //config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-    config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+    //config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     //config.depth_mode = K4A_DEPTH_MODE_WFOV_2X2BINNED;
     //config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
     //config.depth_mode = K4A_DEPTH_MODE_PASSIVE_IR;
 
-    config.camera_fps = K4A_FRAMES_PER_SECOND_5;
+    //config.camera_fps = K4A_FRAMES_PER_SECOND_5;
     //config.camera_fps = K4A_FRAMES_PER_SECOND_15;
-    //config.camera_fps = K4A_FRAMES_PER_SECOND_30;
+    config.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
     bool wantTracker = true;
     //bool wantTracker = false;
@@ -621,7 +634,6 @@ int main() {
     if (config.color_resolution != K4A_COLOR_RESOLUTION_OFF && config.depth_mode != K4A_DEPTH_MODE_OFF)
     {
         config.synchronized_images_only = true;
-        printf("true\n");
     }
     else
     {
@@ -662,6 +674,8 @@ int main() {
     if (audio) {
         CreateThread(NULL, 0, audioThread, NULL, 0, NULL);
     }
+
+    CreateThread(NULL, 0, Timer, NULL, 0, NULL);
     //Run program and send data.
     sendData(device, serial_number, config, tracker, &sensor_calibration, trackerInTwoD);
 
@@ -678,4 +692,6 @@ int main() {
     k4a_device_stop_cameras(device);
     k4a_device_close(device);
     free(serial_number);
+
+    printf("\n\n\nAudio: %d\nColor: %d\nDepth: %d\nIR: %d\nSkeleton: %d\n", AudioCounter, ColorCounter, DepthCounter, IRCounter, SkeletonCounter);
 }
